@@ -11,18 +11,18 @@ class Solution:
              'закон',
              'указ']
 
-    month_mapping = {'января': '01',
-                     'февраля': '02',
-                     'марта': '03',
-                     'апреля': '04',
-                     'мая': '05',
-                     'июня': '06',
-                     'июля': '07',
-                     'августа': '08',
-                     'сентября': '09',
-                     'октября': '10',
+    month_mapping = {'декабря': '12',
                      'ноября': '11',
-                     'декабря': '12'}
+                     'октября': '10',
+                     'сентября': '09',
+                     'августа': '08',
+                     'июля': '07',
+                     'июня': '06',
+                     'мая': '05',
+                     'апреля': '04',
+                     'марта': '03',
+                     'февраля': '02',
+                     'января': '01'}
 
     def __init__(self):
         self.flag = 0
@@ -40,23 +40,34 @@ class Solution:
 
         for text in test:
 
-            # date classification
-            text = text.lower()
-            search_text = text[:160] + text[-60:]
+            
+            text = text.lower().replace(' ', '')
+            #split_text = text.split('\n')
+            search_text = text[:140] + text[-60:]
+            #search_text = '\n'.join(split_text[:8] + split_text[-5:])
             
             # search max year
-            years = re.findall(r'201\d', search_text)
+            years = set(re.findall(r'201\d', search_text))
             if not years:
                 search_text = text
-                years = re.findall(r'201\d', search_text)
+                years = set(re.findall(r'201\d', search_text))
             years = set(map(int, years))
-            year = max(years) if years else '2014'
+
+            # drop years without data
+            years_with_data = set()
+            for year in years:
+                if self.year2data(year, search_text):
+                    years_with_data.add(year)
+            if years_with_data:
+                year = max(years_with_data)
+            else:
+                year = max(years)
             
             # search date
-            dates = re.findall(r'\d\d \w+ '+str(year), search_text)
+            dates = re.findall(r'\d\d[а-я]{3,8}'+str(year), search_text)
             if dates:
                 date = dates[-1]
-                date = date.replace(' ', '.')
+                date = date[:2] + '.' + date[2:-4] + '.' + date[-4:]
                 for month, number in self.month_mapping.items():
                     date = date.replace(month, number)
             else:
@@ -65,6 +76,7 @@ class Solution:
                     date = dates[0]
                 else:
                     date = '26.12.2014'
+            print(date)
 
             prediction = {"type": T,
                           "date": date,
@@ -80,6 +92,10 @@ class Solution:
     def _prepare_data():
         pass
 
+    def year2data(self, year, search_text):
+        return len(re.findall(r'\d\d[а-я]{3,8}'+str(year), search_text) + \
+                   re.findall(r'\d\d\.\d\d\.'+str(year), search_text))
+
 
 if __name__ == '__main__':
     S = Solution()
@@ -88,5 +104,6 @@ if __name__ == '__main__':
     for file in os.listdir('train/txts'):
         with open('train/txts/' + file) as f:
             texts.append(f.read())
-    S.predict(texts)
+    S.predict(texts) 
+    
 
