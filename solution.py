@@ -4,13 +4,6 @@ import re
 
 
 class Solution:
-    Types = ['федеральный закон',
-             'постановление',
-             'приказ',
-             'распоряжение',
-             'закон',
-             'указ']
-
     month_mapping = {'декабря': '12',
                      'ноября': '11',
                      'октября': '10',
@@ -25,26 +18,60 @@ class Solution:
                      'января': '01'}
 
     def __init__(self):
-        self.flag = 0
+        pass
 
     def train(self, train: List[Tuple[str, dict]]) -> None:
         pass
 
     def predict(self, test: List[str]) -> List[dict]:
         results = []
-        author = 'Глава Республики Карелия'
-        date = '26.12.2014'
-        T = 'федеральный закон'
-        number = '831'
-        name = 'о полиции'
+        Author = 'Глава Республики Карелия'
+        Date = '26.12.2014'
+        Type = 'федеральный закон'
+        Number = '831'
+        Name = 'о полиции'
 
         for text in test:
 
-            
+            if 'ПРИКАЗ' in text or 'приказываю' in text:
+                Type = 'приказ'
+                Numbers = re.findall(r'№ (\d+/?\d*-?[а-яА-Я]*)', text[40:])
+                Authors = re.findall(r'^(.*?)\n\n', text, re.S)
+            elif 'РАСПОРЯЖЕНИЕ' in text:
+                Type = 'распоряжение'
+                Numbers = re.findall(r'№ (\d{2,4}-?р?.?)', text)
+                Authors = re.findall(r'^РАСПОРЯЖЕНИЕ\n(.*?)\n', text) if text.startswith('РАСПОРЯЖЕНИЕ') \
+                                                                      else re.findall(r'^(.*?)\n', text)
+                if '' in Authors:
+                    Authors = ['Президент Российской Федерации']
+            elif 'ФЕДЕРАЛЬНЫЙ ЗАКОН' in text[:50]:
+                Type = 'федеральный закон'
+                Numbers = re.findall(r'№ (\d{1,4}-ФЗ)', text)[::-1]
+                Authors = ['Государственная Дума Федерального собрания Российской Федерации']
+            elif 'УКАЗ' in text or 'каз вступает в силу' in text:
+                Type = 'указ'
+                Numbers = re.findall(r'№ (\d{1,4}-?[уУ]?[гГ]?)', text)[::-1]
+                Authors = ['Президент Российской Федерации']
+            elif 'ЗАКОН ' in text or 'ЗАКОН\n' in text:
+                Type = 'закон'
+                Numbers = re.findall(r'№ ([-\dа-яА-Я/]*)', text)[::-1]
+                Authors = re.findall(r'Принят (.*?)\n', text)
+            else:
+                Type = 'постановление'
+                Numbers = re.findall(r'№ (\d+-?[а-яА-Я]{0,2})', text)
+                Authors = re.findall(r'^(.*?)\n', text)
+     
+            names = re.findall(r'\n(О .*?|Об .*?)\n\n', text, re.S)
+            Name = names[0] if names else ''
+            Author = Authors[0] if Authors else 'Правительство Российской Федерации'
+            Number = Numbers[0] if Numbers else '96'
+
+            ###################################################################
+            ###  DATE without type
+            ###################################################################    
+
             text = text.lower().replace(' ', '')
-            #split_text = text.split('\n')
-            search_text = text[:140] + text[-60:]
-            #search_text = '\n'.join(split_text[:8] + split_text[-5:])
+            search_text = text[:150] + text[-70:]
             
             # search max year
             years = set(re.findall(r'201\d', search_text))
@@ -76,27 +103,26 @@ class Solution:
                     date = dates[0]
                 else:
                     date = '26.12.2014'
-            print(date)
-
-            prediction = {"type": T,
-                          "date": date,
-                          "number": number,
-                          "authority": author,
-                          "name": name
+            Date = date
+            ###################################################################
+                
+            prediction = {"type": Type,
+                          "date": Date,
+                          "number": Number,
+                          "authority": Author,
+                          "name": Name
                          }
 
             results.append(prediction)
 
         return results
 
-    def _prepare_data():
-        pass
-
     def year2data(self, year, search_text):
         return len(re.findall(r'\d\d[а-я]{3,8}'+str(year), search_text) + \
                    re.findall(r'\d\d\.\d\d\.'+str(year), search_text))
 
 
+# local testing
 if __name__ == '__main__':
     S = Solution()
     S.train(None)
@@ -104,6 +130,6 @@ if __name__ == '__main__':
     for file in os.listdir('train/txts'):
         with open('train/txts/' + file) as f:
             texts.append(f.read())
-    S.predict(texts) 
+    print(S.predict(texts))
     
 
